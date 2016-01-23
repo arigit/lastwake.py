@@ -5,9 +5,6 @@ and their duration
 (c) Ariel - 2016
 """
 
-# to be called by systemd from  /etc/systemd/system/htpc-suspend-hook.service
-# before going to sleep; Kodi triggers the sleep function via it's idle timer
-
 # echo 
 # echo ">> [SUSPEND] Times during current boot"
 # journalctl -b 0 |grep "]: Suspending system..."
