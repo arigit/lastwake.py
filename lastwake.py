@@ -95,11 +95,14 @@ suspendTimes = []
 wakeTimes = []
 
 for entry in j:
-    # print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
-    if "Suspending system..." in entry['MESSAGE']:
-        suspendTimes.append(entry['__REALTIME_TIMESTAMP'])
-    if "Finishing wakeup" in entry['MESSAGE']:
-        wakeTimes.append(entry['__REALTIME_TIMESTAMP'])
+    try:
+        # print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
+        if "Suspending system..." in str(entry['MESSAGE']):
+            suspendTimes.append(entry['__REALTIME_TIMESTAMP'])
+        if "Finishing wakeup" in str(entry['MESSAGE']):
+            wakeTimes.append(entry['__REALTIME_TIMESTAMP'])
+    except:
+        continue
 
 
 spinningCursor.stop()
