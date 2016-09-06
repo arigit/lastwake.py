@@ -76,7 +76,7 @@ def calculateTimeDiference(suspendTime, awakeTime):
 
 # Main Program
 
-j = journal.Reader()
+j = journal.Reader(journal.SYSTEM)
 j.this_boot()
 j.log_level(journal.LOG_DEBUG)
 # j.add_match(_SYSTEMD_UNIT="systemd-udevd.service")
