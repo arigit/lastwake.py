@@ -91,26 +91,28 @@ print("Initial Boot Timestamp: ", bootTime.strftime("%Y-%m-%d %H:%M:%S"), "\n")
 spinningCursor = cursorSpinner("[Analyzing Journal] ...", 0.2)
 spinningCursor.start()
 
-suspendTimes = []
-wakeTimes = []
+# times is an array of [(start-boot, suspend), (wakeup, suspend), ...]
+times = []
+tmp = bootTime
 
 for entry in j:
     try:
-        # print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
-        if "Suspending system..." in str(entry['MESSAGE']):
-            suspendTimes.append(entry['__REALTIME_TIMESTAMP'])
-        if "Finishing wakeup" in str(entry['MESSAGE']):
-            wakeTimes.append(entry['__REALTIME_TIMESTAMP'])
+        str(entry['MESSAGE'])
     except:
         continue
+    # print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
+    if "Suspending system..." in str(entry['MESSAGE']):
+        times.append((tmp, entry['__REALTIME_TIMESTAMP']))
+        tmp = None
+    if "Finishing wakeup" in str(entry['MESSAGE']):
+        tmp = entry['__REALTIME_TIMESTAMP']
 
+# appending the last wakeup with the current time
+if tmp is not None:
+    times.append((tmp, datetime.datetime.now()))
 
 spinningCursor.stop()
 print(" ", end='\r')
-
-
-# print("Suspend Timestamps:", suspendTimes)
-# print("Wake Timestamps:", wakeTimes)
 
 # prints three columns
 # Wake Time   |   Suspend Time    |    Awake Time
@@ -127,49 +129,20 @@ print(row_format.format("-" * 20, "-" * 20, "-" * 20))
 matrix = []
 totalDaysAwake = 0
 
+# if there is at least one item (sould always be)
+if len(times) > 0:
+    for i in times:
+        awakeTime = calculateTimeDiference(i[1], i[0])
+        row = [
+            i[0].strftime("%Y-%m-%d %H:%M:%S"),
+            i[1].strftime("%Y-%m-%d %H:%M:%S"),
+            timeDiff_format.format(awakeTime[0], awakeTime[1])
+        ]
+        matrix.append(row)
+        totalDaysAwake = totalDaysAwake + awakeTime[3]
 
-# if there is at least one suspend
-if len(suspendTimes) > 0:
-    # first row
-    awakeTime = calculateTimeDiference(suspendTimes[0], bootTime)
-    row = [
-        bootTime.strftime("%Y-%m-%d %H:%M:%S"),
-        suspendTimes[0].strftime("%Y-%m-%d %H:%M:%S"),
-        timeDiff_format.format(awakeTime[0], awakeTime[1])
-    ]
-    matrix.append(row)
-    totalDaysAwake = totalDaysAwake + awakeTime[3]
-
-    # if there is more than one suspend
-    if len(suspendTimes) > 1:
-        # create rest of matrix
-        rowCounter = 1
-        for rowCounter in range(1, len(wakeTimes)):
-            awakeTime = calculateTimeDiference(
-                suspendTimes[rowCounter],
-                wakeTimes[rowCounter - 1]
-            )
-            row = [
-                wakeTimes[rowCounter - 1].strftime("%Y-%m-%d %H:%M:%S"),
-                suspendTimes[rowCounter].strftime("%Y-%m-%d %H:%M:%S"),
-                timeDiff_format.format(awakeTime[0], awakeTime[1])
-            ]
-            matrix.append(row)
-            totalDaysAwake = totalDaysAwake + awakeTime[3]
-
-
-if len(wakeTimes) == 0:
-    wakeTimes.append(bootTime)
-# final row (it contains the time between the last wake (or cold boot) and now
-awakeTime = calculateTimeDiference(datetime.datetime.now(), wakeTimes[-1])
-row = [
-    wakeTimes[-1].strftime("%Y-%m-%d %H:%M:%S"),
-    "(Still Awake)",
-    timeDiff_format.format(awakeTime[0], awakeTime[1])
-]
-matrix.append(row)
-totalDaysAwake = totalDaysAwake + awakeTime[3]
-
+# removing the latest time, because it is still this boot
+matrix[-1][-2] = '(Still Awake)'
 
 for row in matrix:
     print(row_format.format(*row))
@@ -186,7 +159,7 @@ print(
         "] | Days Awake [" +
         "{:.2f}".format(totalDaysAwake) +
         "] | Suspend/Wake Cycles: [" +
-        str(len(suspendTimes)) +
+        str(len(times) - 1) +
         "]\n"
     )
 )
