@@ -129,7 +129,7 @@ print(row_format.format("-" * 20, "-" * 20, "-" * 20))
 matrix = []
 totalDaysAwake = 0
 
-# if there is at least one item (sould always be)
+# if there is at least one item (should always be)
 if len(times) > 0:
     for i in times:
         awakeTime = calculateTimeDiference(i[1], i[0])
