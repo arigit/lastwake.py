@@ -107,6 +107,7 @@ for entry in j:
     except:
         continue
 
+j.close()
 
 spinningCursor.stop()
 print(" ", end='\r')
