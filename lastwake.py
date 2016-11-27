@@ -85,6 +85,10 @@ print("\nWake/Suspend Time SystemD Journal Analyzer [current boot]\n")
 
 # take timestamp of first entry in list as boot time
 bootTime = j.get_next()['__REALTIME_TIMESTAMP']
+j.add_match("MESSAGE=Suspending system...")
+j.add_disjunction()
+j.add_match("MESSAGE=PM: Finishing wakeup.")
+
 print("Initial Boot Timestamp: ", bootTime.strftime("%Y-%m-%d %H:%M:%S"), "\n")
 
 
@@ -92,8 +96,18 @@ spinningCursor = cursorSpinner("[Analyzing Journal] ...", 0.2)
 spinningCursor.start()
 
 # times is an array of [(start-boot, suspend), (wakeup, suspend), ...]
-times = []
-tmp = bootTime
+
+times = []  # list of (wakeup, suspend) timestamps, starting with the cold boot
+
+lookingForSuspend = True
+wakeUpCandidate = bootTime
+suspendCandidate = None
+# When the lookingForSuspend flag is On, keep looking for Suspend until a Wakeup is found
+# this will allow the script to handle sequences of "N" repetead suspends in the log
+#    Result: assumes the last Suspend found in the sequence as the right one (validated)
+# simlar logic used to handle "N" repeated wakeUps in the log
+#    Result: assumes the first Wakeup found in the sequence as the right one (validated)
+# Repeated Suspends can happen in the log if the suspend is aborted via suspend-hook scripts
 
 for entry in j:
     try:
@@ -101,16 +115,29 @@ for entry in j:
     except:
         continue
     # print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
-    if "Suspending system..." in str(entry['MESSAGE']):
-        times.append((tmp, entry['__REALTIME_TIMESTAMP']))
-        tmp = None
-    if "Finishing wakeup" in str(entry['MESSAGE']):
-        tmp = entry['__REALTIME_TIMESTAMP']
+    if lookingForSuspend:
+        if "Suspending system..." in str(entry['MESSAGE']):
+            suspendCandidate = entry['__REALTIME_TIMESTAMP']
+        if "Finishing wakeup" in str(entry['MESSAGE']) and suspendCandidate != None:
+            # found a wakeup while looking for suspend
+            # so: accept the previous suspend as a Good one and add the entry
+            times.append((wakeUpCandidate, suspendCandidate))
+            # capture the wakeUpCandidate and switch to looking for WakeUps                      
+            wakeUpCandidate = entry['__REALTIME_TIMESTAMP']
+            lookingForSuspend = False
+    else:
+        #looking for WakeUps
+        if "Finishing wakeup" in str(entry['MESSAGE']):
+            # ignore the entry: we want to keep the first WakeUp in the sequence
+            pass
+        if "Suspending system..." in str(entry['MESSAGE']):
+            suspendCandidate = entry['__REALTIME_TIMESTAMP']            
+            lookingForSuspend = True
+             
+# appending the last wakeUp with the current time
+times.append((wakeUpCandidate, datetime.datetime.now()))
 
-# appending the last wakeup with the current time
-if tmp is not None:
-    times.append((tmp, datetime.datetime.now()))
-
+j.close()
 spinningCursor.stop()
 print(" ", end='\r')
 
