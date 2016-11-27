@@ -87,6 +87,9 @@ print("\nWake/Suspend Time SystemD Journal Analyzer [current boot]\n")
 bootTime = j.get_next()['__REALTIME_TIMESTAMP']
 print("Initial Boot Timestamp: ", bootTime.strftime("%Y-%m-%d %H:%M:%S"), "\n")
 
+j.add_match("MESSAGE=Suspending system...")
+j.add_disjunction()
+j.add_match("MESSAGE=PM: Finishing wakeup.")
 
 spinningCursor = cursorSpinner("[Analyzing Journal] ...", 0.2)
 spinningCursor.start()
