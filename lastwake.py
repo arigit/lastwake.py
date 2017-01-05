@@ -19,44 +19,8 @@ and their duration
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-# echo
-# echo ">> [SUSPEND] Times during current boot"
-# journalctl -b 0 |grep "]: Suspending system..."
-# echo
-# echo ">> [WAKE] Times during current boot"
-# journalctl -b 0 |grep "PM: Finishing wakeup"
-# echo
-
 import datetime
 from systemd import journal
-import threading
-import time
-
-
-class cursorSpinner(threading.Thread):
-    """Diplays a static message followed by
-    a spinning cursor in the terminal"""
-
-    def __init__(self, messageString, refreshInterval):
-        self.flag = True
-        self.animation_char = "|/-\\"
-        self.messageString = messageString
-        self.refreshInterval = refreshInterval
-        self.idx = 0
-        threading.Thread.__init__(self)
-
-    def run(self):
-        while self.flag:
-            print('\r' + self.messageString, end='')
-            print(
-                self.animation_char[self.idx % len(self.animation_char)],
-                end=''
-            )
-            self.idx += 1
-            time.sleep(self.refreshInterval)
-
-    def stop(self):
-        self.flag = False
 
 
 def calculateTimeDiference(suspendTime, awakeTime):
@@ -90,10 +54,6 @@ j.add_disjunction()
 j.add_match("MESSAGE=PM: Finishing wakeup.")
 
 print("Initial Boot Timestamp: ", bootTime.strftime("%Y-%m-%d %H:%M:%S"), "\n")
-
-
-spinningCursor = cursorSpinner("[Analyzing Journal] ...", 0.2)
-spinningCursor.start()
 
 # times is an array of [(start-boot, suspend), (wakeup, suspend), ...]
 
@@ -138,7 +98,6 @@ for entry in j:
 times.append((wakeUpCandidate, datetime.datetime.now()))
 
 j.close()
-spinningCursor.stop()
 print(" ", end='\r')
 
 # prints three columns
