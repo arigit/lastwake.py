@@ -49,9 +49,9 @@ print("\nWake/Suspend Time SystemD Journal Analyzer [current boot]\n")
 
 # take timestamp of first entry in list as boot time
 bootTime = j.get_next()['__REALTIME_TIMESTAMP']
-j.add_match("MESSAGE=Suspending system...")
+j.add_match("MESSAGE=Starting Suspend...")
 j.add_disjunction()
-j.add_match("MESSAGE=PM: Finishing wakeup.")
+j.add_match("MESSAGE=Started Suspend.")
 
 print("Initial Boot Timestamp: ", bootTime.strftime("%Y-%m-%d %H:%M:%S"), "\n")
 
@@ -76,9 +76,9 @@ for entry in j:
         continue
     # print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
     if lookingForSuspend:
-        if "Suspending system..." in str(entry['MESSAGE']):
+        if "Starting Suspend..." in str(entry['MESSAGE']):
             suspendCandidate = entry['__REALTIME_TIMESTAMP']
-        if "Finishing wakeup" in str(entry['MESSAGE']) and suspendCandidate != None:
+        if "Started Suspend." in str(entry['MESSAGE']) and suspendCandidate != None:
             # found a wakeup while looking for suspend
             # so: accept the previous suspend as a Good one and add the entry
             times.append((wakeUpCandidate, suspendCandidate))
@@ -87,10 +87,10 @@ for entry in j:
             lookingForSuspend = False
     else:
         #looking for WakeUps
-        if "Finishing wakeup" in str(entry['MESSAGE']):
+        if "Started Suspend." in str(entry['MESSAGE']):
             # ignore the entry: we want to keep the first WakeUp in the sequence
             pass
-        if "Suspending system..." in str(entry['MESSAGE']):
+        if "Starting Suspend..." in str(entry['MESSAGE']):
             suspendCandidate = entry['__REALTIME_TIMESTAMP']            
             lookingForSuspend = True
              
