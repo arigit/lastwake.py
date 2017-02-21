@@ -49,7 +49,8 @@ print("\nWake/Suspend Time SystemD Journal Analyzer [current boot]\n")
 # take timestamp of first entry in list as boot time
 bootTime = j.get_next()['__REALTIME_TIMESTAMP']
 
-# Kernel messages lingo: Hibernation = to disk; Suspend = to RAM; Sleep = either hibernation (S4) or suspend (S3)
+# Kernel messages lingo: Hibernation = to disk; Suspend = to RAM; 
+# Sleep = either hibernation (S4) or suspend (S3)
 suspendStart = "Reached target Sleep."
 hibernateStart = "Suspending system..."
 suspendWake = "ACPI: Waking up from system sleep state S3"
@@ -90,14 +91,15 @@ for entry in j:
     if lookingForSleep:
         if suspendStart in str(entry['MESSAGE']) or hibernateStart in str(entry['MESSAGE']):
             sleepCandidate = entry['__REALTIME_TIMESTAMP']
-        if (suspendWake in str(entry['MESSAGE']) or hibernateWake in str(entry['MESSAGE'])) and sleepCandidate != None:
+        if (suspendWake in str(entry['MESSAGE']) or hibernateWake in str(entry['MESSAGE'])) \
+            and sleepCandidate != None:
             # found a wakeup while looking for sleep (S3 or S4)
             # so: accept the previous sleep as a Good one and add the entry
             times.append((wakeUpCandidate, sleepCandidate, wakeUpCandidateType))
             # capture the wakeUpCandidate and switch to looking for WakeUps                      
             wakeUpCandidate = entry['__REALTIME_TIMESTAMP']
-            if suspendWake in str(entry['MESSAGE']): wakeUpCandidateType = "S3 (from RAM)" 
-            elif hibernateWake in str(entry['MESSAGE']): wakeUpCandidateType = "S4 (from disk)" 
+            if suspendWake in str(entry['MESSAGE']): wakeUpCandidateType = "S3 (RAM)" 
+            elif hibernateWake in str(entry['MESSAGE']): wakeUpCandidateType = "S4 (disk)" 
             lookingForSleep = False
     else:
         #looking for WakeUps
@@ -119,11 +121,12 @@ print(" ", end='\r')
 # first row contains boot time
 # last row contains last awake time but no 'suspend time'
 
-headers = ["Wake Timestamp", "Suspend Timestamp", "Awake Time", "Wake Type"]
-row_format = " {:^20} |" * 2 + " {:^14} |" * 2
+headers = ["Wake Timestamp", "Suspend Timestamp", "Awake Time", "Wake From"]
+row_format = " {:^19} |" * 2 + " {:^10} |" + " {:^9}"
 timeDiff_format = "{:3d}h {:2d}m"
 print(row_format.format(*headers))
-print(row_format.format("-" * 20, "-" * 20, "-" * 14, "-" * 14))
+rowSeparator = ("-" * 19, "-" * 19, "-" * 10, "-" * 9)
+print(row_format.format(*rowSeparator))
 
 # assemble matrix rows
 matrix = []
@@ -148,18 +151,18 @@ matrix[-1][-3] = '(Still Awake)'
 for row in matrix:
     print(row_format.format(*row))
 
-print(row_format.format("-" * 20, "-" * 20, "-" * 14, "-" * 14), "\n")
+print(row_format.format(*rowSeparator), "\n")
 
 
 timeSinceBoot = calculateTimeDiference(datetime.datetime.now(), bootTime)
 # provide a summary
 print(
     str(
-        "Summary: Days Since Boot [" +
+        "Days Since Boot [" +
         "{:.2f}".format(timeSinceBoot[3]) +
-        "] | Days Awake [" +
+        "] - Days Awake [" +
         "{:.2f}".format(totalDaysAwake) +
-        "] | Suspend/Wake Cycles: [" +
+        "] - Sleep/Wake Cycles: [" +
         str(len(times) - 1) +
         "]\n"
     )
