@@ -44,7 +44,7 @@ j = journal.Reader(journal.SYSTEM)
 j.this_boot()
 j.log_level(journal.LOG_DEBUG)
 
-print("\nWake/Suspend Time SystemD Journal Analyzer [current boot]\n")
+print("\nWake/Sleep Time SystemD Journal Analyzer [current boot]\n")
 
 # take timestamp of first entry in list as boot time
 bootTime = j.get_next()['__REALTIME_TIMESTAMP']
@@ -162,7 +162,7 @@ print(
         "{:.2f}".format(timeSinceBoot[3]) +
         " - Days Awake: " +
         "{:.2f}".format(totalDaysAwake) +
-        " - Sleep/Wake Cycles: " +
+        " - Wake/Sleep Cycles: " +
         str(len(times) - 1) +
         "\n"
     )
