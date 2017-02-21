@@ -158,12 +158,12 @@ timeSinceBoot = calculateTimeDiference(datetime.datetime.now(), bootTime)
 # provide a summary
 print(
     str(
-        "Days Since Boot [" +
+        "Days Since Boot: " +
         "{:.2f}".format(timeSinceBoot[3]) +
-        "] - Days Awake [" +
+        " - Days Awake: " +
         "{:.2f}".format(totalDaysAwake) +
-        "] - Sleep/Wake Cycles: [" +
+        " - Sleep/Wake Cycles: " +
         str(len(times) - 1) +
-        "]\n"
+        "\n"
     )
 )
