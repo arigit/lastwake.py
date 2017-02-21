@@ -17,7 +17,7 @@ Initial Boot Timestamp:  2017-02-20 09:22:17
  2017-02-20 22:42:10 |    (Still Awake)    |    0h  0m  | S3 (RAM) 
  ------------------- | ------------------- | ---------- | --------- 
 
-Days Since Boot [0.51] - Days Awake [0.09] - Sleep/Wake Cycles: [4]
+Days Since Boot: 0.51 - Days Awake: 0.09 - Sleep/Wake Cycles: 4
 
 
 ```
