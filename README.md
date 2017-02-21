@@ -8,7 +8,7 @@ Wake/Suspend Time SystemD Journal Analyzer [current boot]
 
 Initial Boot Timestamp:  2017-02-20 09:22:17 
 
-   Wake Timestamp    |  Suspend Timestamp  | Awake Time | Wake From
+   Wake Timestamp    |   Sleep Timestamp   | Awake Time | Wake From
  ------------------- | ------------------- | ---------- | ---------
  2017-02-20 09:22:17 | 2017-02-20 09:52:18 |    0h 30m  | Cold Boot
  2017-02-20 10:27:13 | 2017-02-20 10:49:26 |    0h 22m  | S4 (disk)
