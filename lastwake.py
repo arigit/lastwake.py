@@ -121,7 +121,7 @@ print(" ", end='\r')
 # first row contains boot time
 # last row contains last awake time but no 'suspend time'
 
-headers = ["Wake Timestamp", "Suspend Timestamp", "Awake Time", "Wake From"]
+headers = ["Wake Timestamp", "Sleep Timestamp", "Awake Time", "Wake From"]
 row_format = " {:^19} |" * 2 + " {:^10} |" + " {:^9}"
 timeDiff_format = "{:3d}h {:2d}m"
 print(row_format.format(*headers))
