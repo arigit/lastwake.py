@@ -6,18 +6,19 @@ Sample Output:
 ```
 Wake/Suspend Time SystemD Journal Analyzer [current boot]
 
-Initial Boot Timestamp:  2017-02-19 13:05:47 
+Initial Boot Timestamp:  2017-02-20 09:22:17 
 
-    Wake Timestamp    |  Suspend Timestamp   |   Awake Time   |   Wake Type    |
- -------------------- | -------------------- | -------------- | -------------- |
- 2017-02-19 13:05:47  | 2017-02-19 13:11:47  |      0h  5m    |   Cold Boot    |
- 2017-02-19 13:12:51  | 2017-02-19 13:59:16  |      0h 46m    | S4 (from disk) |
- 2017-02-19 20:43:29  | 2017-02-19 20:54:51  |      0h 11m    | S4 (from disk) |
- 2017-02-19 20:55:07  | 2017-02-19 23:43:07  |      2h 47m    | S3 (from RAM)  |
- 2017-02-19 23:43:38  |    (Still Awake)     |      0h 27m    | S3 (from RAM)  |
- -------------------- | -------------------- | -------------- | -------------- | 
+   Wake Timestamp    |  Suspend Timestamp  | Awake Time | Wake From
+ ------------------- | ------------------- | ---------- | ---------
+ 2017-02-20 09:22:17 | 2017-02-20 09:52:18 |    0h 30m  | Cold Boot
+ 2017-02-20 10:27:13 | 2017-02-20 10:49:26 |    0h 22m  | S4 (disk)
+ 2017-02-20 10:50:50 | 2017-02-20 11:03:16 |    0h 12m  | S4 (disk)
+ 2017-02-20 21:51:55 | 2017-02-20 22:41:44 |    0h 49m  | S4 (disk)
+ 2017-02-20 22:42:10 |    (Still Awake)    |    0h  0m  | S3 (RAM) 
+ ------------------- | ------------------- | ---------- | --------- 
 
-Summary: Days Since Boot [0.46] | Days Awake [0.18] | Suspend/Wake Cycles: [4]
+Days Since Boot [0.51] - Days Awake [0.09] - Sleep/Wake Cycles: [4]
+
 
 ```
 
