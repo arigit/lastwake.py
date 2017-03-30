@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 """
 Parses the systemd journal to find out:
 time of last cold boot, and start/end times of each sleep/resume cycle
