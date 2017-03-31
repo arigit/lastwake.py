@@ -3,7 +3,13 @@ Wake/Sleep Time SystemD Journal Analyzer [current boot]
 
 What it does: Analyzes the system journal and prints out wake-up and sleep timestamps; for each cycle it tells whether the system was suspended to RAM or to disk (hibernated).
 
-Sample Output:
+## Requirements
+This program requires `systemd-python` ([Github](https://github.com/systemd/python-systemd), [PyPI](https://pypi.python.org/pypi/systemd-python)). To get it:
+
+    pip3 install -r requirements.txt
+
+
+## Sample Output
 
 ```
 Wake/Sleep Time SystemD Journal Analyzer [current boot]
@@ -23,4 +29,3 @@ Days Since Boot: 0.51 - Days Awake: 0.09 - Wake/Sleep Cycles: 4
 
 
 ```
-
