@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
     lookingForSleep = True
     wakeUpCandidate = bootTime
-    wakeUpCandidateType = "Cold Boot"
+    wakeUpCandidateType = "S5 (boot)"
     sleepCandidate = None
     # When the lookingForSleep flag is On, keep looking for a suspend event until a Wakeup is found
     # this will allow the script to handle sequences of "N" repeated suspends in the log
