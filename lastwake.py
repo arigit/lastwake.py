@@ -20,6 +20,7 @@ and their duration - supports S3 (suspend to RAM) and S4 (hibernate to disk)
 """
 
 import datetime
+import sys
 from systemd import journal
 
 
@@ -40,16 +41,29 @@ def calculateTimeDiference(suspendTime, awakeTime):
 
 # Main Program
 if __name__ == '__main__':
+    args = sys.argv[1:]
+    if args:
+        # boot_id from 'journalctl --list-boots '
+        bootId = args.pop()
+        msg = 'selected boot'
+    else:
+        bootId = None
+        msg = 'current boot'
+
     j = journal.Reader(journal.SYSTEM)
-    j.this_boot()
+    j.this_boot(bootId)
     j.log_level(journal.LOG_DEBUG)
 
-    print("\nWake/Sleep Time SystemD Journal Analyzer [current boot]\n")
+    print("\nWake/Sleep Time SystemD Journal Analyzer ["+msg+"]\n")
 
-    # take timestamp of first entry in list as boot time
-    bootTime = j.get_next()['__REALTIME_TIMESTAMP']
+    try:
+        # take timestamp of first entry in list as boot time
+        bootTime = j.get_next()['__REALTIME_TIMESTAMP']
+    except KeyError:
+        print("\n!! No entity found for "+msg+" !!\n")
+        sys.exit(1)
 
-    # Kernel messages lingo: Hibernation = to disk; Suspend = to RAM; 
+    # Kernel messages lingo: Hibernation = to disk; Suspend = to RAM;
     # Sleep = either hibernation (S4) or suspend (S3)
     suspendStart = "Reached target Sleep."
     hibernateStart = "Suspending system..."
@@ -84,7 +98,7 @@ if __name__ == '__main__':
 
     for entry in j:
         try:
-            str(entry['MESSAGE'])        
+            str(entry['MESSAGE'])
         except:
             continue
         #print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
@@ -96,10 +110,10 @@ if __name__ == '__main__':
                 # found a wakeup while looking for sleep (S3 or S4)
                 # so: accept the previous sleep as a Good one and add the entry
                 times.append((wakeUpCandidate, sleepCandidate, wakeUpCandidateType))
-                # capture the wakeUpCandidate and switch to looking for WakeUps                      
+                # capture the wakeUpCandidate and switch to looking for WakeUps
                 wakeUpCandidate = entry['__REALTIME_TIMESTAMP']
-                if suspendWake in str(entry['MESSAGE']): wakeUpCandidateType = "S3 (RAM)" 
-                elif hibernateWake in str(entry['MESSAGE']): wakeUpCandidateType = "S4 (disk)" 
+                if suspendWake in str(entry['MESSAGE']): wakeUpCandidateType = "S3 (RAM)"
+                elif hibernateWake in str(entry['MESSAGE']): wakeUpCandidateType = "S4 (disk)"
                 lookingForSleep = False
         else:
             #looking for WakeUps
@@ -107,9 +121,9 @@ if __name__ == '__main__':
                 # ignore the entry: we want to keep the first WakeUp in the sequence
                 pass
             if suspendStart in str(entry['MESSAGE']) or hibernateStart in str(entry['MESSAGE']):
-                sleepCandidate = entry['__REALTIME_TIMESTAMP']            
+                sleepCandidate = entry['__REALTIME_TIMESTAMP']
                 lookingForSleep = True
-                
+
     # appending the last wakeUp with the current time
     times.append((wakeUpCandidate, datetime.datetime.now(), wakeUpCandidateType))
 
