@@ -52,6 +52,7 @@ if __name__ == '__main__':
 
     j = journal.Reader(journal.SYSTEM)
     j.this_boot(bootId)
+    j.add_conjunction()
     j.log_level(journal.LOG_DEBUG)
 
     print("\nWake/Sleep Time SystemD Journal Analyzer ["+msg+"]\n")
@@ -69,6 +70,7 @@ if __name__ == '__main__':
     hibernateStart = "Suspending system..."
     suspendWake = "ACPI: Waking up from system sleep state S3"
     hibernateWake = "ACPI: Waking up from system sleep state S4"
+    shuttingDown = "Shutting down."
     # Starting Sleep (applies to both Suspend and Hibernation): Suspending system...
 
     j.add_match("MESSAGE=" + hibernateStart)
@@ -78,6 +80,8 @@ if __name__ == '__main__':
     j.add_match("MESSAGE=" + hibernateWake)
     j.add_disjunction()
     j.add_match("MESSAGE=" + suspendWake)
+    j.add_disjunction()
+    j.add_match("MESSAGE=" + shuttingDown)
 
     print("Initial Boot Timestamp: ", bootTime.strftime("%Y-%m-%d %H:%M:%S"), "\n")
 
@@ -85,47 +89,36 @@ if __name__ == '__main__':
 
     times = []  # list of (wakeup, suspend) timestamps, starting with the cold boot
 
-    lookingForSleep = True
     wakeUpCandidate = bootTime
     wakeUpCandidateType = "S5 (boot)"
     sleepCandidate = None
-    # When the lookingForSleep flag is On, keep looking for a suspend event until a Wakeup is found
+    # Keep the latest suspend event until a Wakeup is found
     # this will allow the script to handle sequences of "N" repeated suspends in the log
-    #    Result: assumes the last Suspend found in the sequence as the right one (validated)
+    #    Result: assumes the last Suspend found in the sequence as the right one
     # simlar logic used to handle "N" repeated wakeUps in the log
-    #    Result: assumes the first Wakeup found in the sequence as the right one (validated)
+    #    Result: assumes the first Wakeup found in the sequence as the right one (otherwise sleepCandidate is None)
     # Repeated Suspends can happen in the log if the suspend is aborted via suspend-hook scripts
 
     for entry in j:
         try:
-            str(entry['MESSAGE'])
+            msg = str(entry['MESSAGE'])
         except:
             continue
         #print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
-        if lookingForSleep:
-            if suspendStart in str(entry['MESSAGE']) or hibernateStart in str(entry['MESSAGE']):
-                sleepCandidate = entry['__REALTIME_TIMESTAMP']
-            if (suspendWake in str(entry['MESSAGE']) or hibernateWake in str(entry['MESSAGE'])) \
-                and sleepCandidate != None:
-                # found a wakeup while looking for sleep (S3 or S4)
-                # so: accept the previous sleep as a Good one and add the entry
-                times.append((wakeUpCandidate, sleepCandidate, wakeUpCandidateType))
-                # capture the wakeUpCandidate and switch to looking for WakeUps
-                wakeUpCandidate = entry['__REALTIME_TIMESTAMP']
-                if suspendWake in str(entry['MESSAGE']): wakeUpCandidateType = "S3 (RAM)"
-                elif hibernateWake in str(entry['MESSAGE']): wakeUpCandidateType = "S4 (disk)"
-                lookingForSleep = False
-        else:
-            #looking for WakeUps
-            if suspendWake in str(entry['MESSAGE']) or hibernateWake in str(entry['MESSAGE']):
-                # ignore the entry: we want to keep the first WakeUp in the sequence
-                pass
-            if suspendStart in str(entry['MESSAGE']) or hibernateStart in str(entry['MESSAGE']):
-                sleepCandidate = entry['__REALTIME_TIMESTAMP']
-                lookingForSleep = True
+        if suspendStart in msg or hibernateStart in msg or shuttingDown in msg:
+            sleepCandidate = entry['__REALTIME_TIMESTAMP']
+        elif (suspendWake in msg or hibernateWake in msg) \
+            and sleepCandidate is not None:
+            # found a wakeup: add the previous Wake along with the latest sleep
+            times.append((wakeUpCandidate, sleepCandidate, wakeUpCandidateType))
+            # capture the wakeUpCandidate and switch to looking for WakeUps
+            wakeUpCandidate = entry['__REALTIME_TIMESTAMP']
+            sleepCandidate = None
+            if suspendWake in msg: wakeUpCandidateType = "S3 (RAM)"
+            elif hibernateWake in msg: wakeUpCandidateType = "S4 (disk)"
 
-    # appending the last wakeUp with the current time
-    times.append((wakeUpCandidate, datetime.datetime.now(), wakeUpCandidateType))
+    # append the last wakeUp with the sleepCandidate (might be None if still awake)
+    times.append((wakeUpCandidate, sleepCandidate, wakeUpCandidateType))
 
     j.close()
     print(" ", end='\r')
@@ -146,21 +139,25 @@ if __name__ == '__main__':
     matrix = []
     totalDaysAwake = 0
 
-    # if there is at least one item (should always be)
-    if len(times) > 0:
-        for i in times:
-            awakeTime = calculateTimeDiference(i[1], i[0])
-            row = [
-                i[0].strftime("%Y-%m-%d %H:%M:%S"),
-                i[1].strftime("%Y-%m-%d %H:%M:%S"),
-                timeDiff_format.format(awakeTime[0], awakeTime[1]),
-                i[2]
-            ]
-            matrix.append(row)
-            totalDaysAwake = totalDaysAwake + awakeTime[3]
-
-    # removing the latest time, because it is still this boot
-    matrix[-1][-3] = '(Still Awake)'
+    defaultFormat = "%Y-%m-%d %H:%M:%S"
+    # Create a string array with the infos
+    for i in times:
+        [start, end, bootType] = i
+        if end is None:
+            end = datetime.datetime.now()
+            endFormat = '(Still Awake)'
+        else:
+            endFormat = defaultFormat
+        lastTime = end
+        awakeTime = calculateTimeDiference(end, start)
+        row = [
+            start.strftime(defaultFormat),
+            end.strftime(endFormat),
+            timeDiff_format.format(awakeTime[0], awakeTime[1]),
+            bootType
+        ]
+        matrix.append(row)
+        totalDaysAwake = totalDaysAwake + awakeTime[3]
 
     for row in matrix:
         print(row_format.format(*row))
@@ -168,7 +165,8 @@ if __name__ == '__main__':
     print(row_format.format(*rowSeparator), "\n")
 
 
-    timeSinceBoot = calculateTimeDiference(datetime.datetime.now(), bootTime)
+    timeSinceBoot = calculateTimeDiference(lastTime, bootTime)
+    print(lastTime)
     # provide a summary
     print(
         str(
