@@ -1,7 +1,14 @@
 # lastwake.py
-Wake/Sleep Time SystemD Journal Analyzer [current boot]
+Wake/Sleep Time SystemD Journal Analyzer
 
 What it does: Analyzes the system journal and prints out wake-up and sleep timestamps; for each cycle it tells whether the system was suspended to RAM or to disk (hibernated).
+
+By default it will perform the analysis of wake-up/sleep cycles for the current boot, but also accepts a boot-id as an arguments (boot-id's can be obtained from: journalctl --list-boots)
+
+
+## Usage
+lastwake [-h] [-b BOOT_ID] [bootId]
+
 
 ## Requirements
 This program requires `systemd-python` ([Github](https://github.com/systemd/python-systemd), [PyPI](https://pypi.python.org/pypi/systemd-python)). To get it:
