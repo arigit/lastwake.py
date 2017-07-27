@@ -22,6 +22,8 @@ and their duration - supports S3 (suspend to RAM) and S4 (hibernate to disk)
 import datetime
 import sys
 from systemd import journal
+import argparse
+
 
 
 def calculateTimeDiference(suspendTime, awakeTime):
@@ -41,27 +43,41 @@ def calculateTimeDiference(suspendTime, awakeTime):
 
 # Main Program
 if __name__ == '__main__':
-    args = sys.argv[1:]
-    if args:
-        # boot_id from 'journalctl --list-boots '
-        bootId = args.pop()
-        msg = 'selected boot'
-    else:
+
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-b', '--boot-id', help="boot-id in the format obtained from 'journalctl --list-boots'", action="store")
+    parser.add_argument('bootId', help="optional: boot-id in the format obtained from 'journalctl --list-boots'", nargs='?')
+
+    args = parser.parse_args()                  
+    
+    
+    if not len(sys.argv) > 1: 
+        # if no arguments, assume current boot
         bootId = None
         msg = 'current boot'
+    elif args.boot_id:
+        bootId = args.boot_id
+        msg = 'selected boot = ' + bootId
+    else:
+        bootId = args.bootId
+        msg = 'selected boot = ' + bootId
+        
+      
 
     j = journal.Reader(journal.SYSTEM)
     j.this_boot(bootId)
     j.add_conjunction()
     j.log_level(journal.LOG_DEBUG)
 
-    print("\nWake/Sleep Time SystemD Journal Analyzer ["+msg+"]\n")
+    print("\nWake/Sleep Time SystemD Journal Analyzer\n")
+    print(" Boot under analysis: " + msg)
 
     try:
         # take timestamp of first entry in list as boot time
         bootTime = j.get_next()['__REALTIME_TIMESTAMP']
     except KeyError:
-        print("\n!! No entity found for "+msg+" !!\n")
+        print("\n Warning: no entries in the Journal found for boot: " + bootId + " (script terminated)\n")
         sys.exit(1)
 
     # Kernel messages lingo: Hibernation = to disk; Suspend = to RAM;
@@ -83,7 +99,7 @@ if __name__ == '__main__':
     j.add_disjunction()
     j.add_match("MESSAGE=" + shuttingDown)
 
-    print("Initial Boot Timestamp: ", bootTime.strftime("%Y-%m-%d %H:%M:%S"), "\n")
+    print(" Initial Boot Timestamp: ", bootTime.strftime("%Y-%m-%d %H:%M:%S"), "\n")
 
     # times is an array of [(start-boot, suspend), (wakeup, suspend), ...]
 
@@ -166,7 +182,7 @@ if __name__ == '__main__':
 
 
     timeSinceBoot = calculateTimeDiference(lastTime, bootTime)
-    print(lastTime)
+    # print(lastTime)
     # provide a summary
     print(
         str(
