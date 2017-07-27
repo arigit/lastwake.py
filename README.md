@@ -6,22 +6,32 @@ What it does: Analyzes the system journal and prints out wake-up and sleep times
 By default it will perform the analysis of wake-up/sleep cycles for the current boot, but also accepts a boot-id as an arguments (boot-id's can be obtained from: journalctl --list-boots)
 
 
-## Usage
-lastwake [-h] [-b BOOT_ID] [bootId]
-
-
 ## Requirements
 This program requires `systemd-python` ([Github](https://github.com/systemd/python-systemd), [PyPI](https://pypi.python.org/pypi/systemd-python)). To get it:
 
     pip3 install -r requirements.txt
 
 
+## Usage
+lastwake [-h] [-b BOOT_ID] [bootId]
+
+### Examples
+
+lastwake
+
+lastwake --boot-id afdffb7dae61404abb5506ebf10ee2ac
+
+lastwake afdffb7dae61404abb5506ebf10ee2ac
+
+
+
 ## Sample Output
 
 ```
-Wake/Sleep Time SystemD Journal Analyzer [current boot]
+Wake/Sleep Time SystemD Journal Analyzer
 
-Initial Boot Timestamp:  2017-02-20 09:22:17 
+ Boot under analysis: selected boot = afdffb7dae61404abb5506ebf10ee2ac
+ Initial Boot Timestamp:  2017-07-06 11:23:42
 
    Wake Timestamp    |   Sleep Timestamp   | Awake Time | Wake From
  ------------------- | ------------------- | ---------- | ---------
