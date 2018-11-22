@@ -23,6 +23,7 @@ import datetime
 import sys
 from systemd import journal
 import argparse
+import subprocess
 
 
 
@@ -62,6 +63,19 @@ if __name__ == '__main__':
     else:
         bootId = args.bootId
         msg = 'selected boot = ' + bootId
+
+    if bootId and bootId.startswith("-"):
+        bId = int(bootId)
+        assert bId <= 0
+        out = subprocess.check_output(["journalctl",
+                                       "--list-boots"]).decode('utf-8')
+        boots = {
+            int(l[0]): l[1]
+            for l in map(lambda x: x.strip().split(" "),
+                         out.strip().split("\n")) if l
+        }
+        if bId in boots:
+            bootId = boots[bId]
         
       
 
