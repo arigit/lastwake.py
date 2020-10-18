@@ -37,10 +37,8 @@ This program requires:
     cd path/to/lastwake.py
     # Create a symbolic link, named `lastwake`, to the Python executable inside the ~/bin dir
     ln -si "${PWD}/lastwake.py" ~/bin/lastwake
-    # On Ubuntu, if this is the first time creating and using the ~/bin dir, log out and log back in to 
-    # automatically add this dir to your PATH. If on another Linux system, do what is required to add 
-    # the ~/bin dir to your PATH variable. Now you can call `lastwake` from anywhere in your terminal.
     ```
+1. On Ubuntu, if this is the first time creating and using the ~/bin dir, log out and log back in to automatically add this dir to your PATH. If on another Linux system, do what is required to add the ~/bin dir to your PATH variable. Now you can call `lastwake` from anywhere in your terminal.
 
 
 ## Usage
