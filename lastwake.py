@@ -3,7 +3,7 @@
 Parses the systemd journal to find out:
 time of last cold boot, and start/end times of each sleep/resume cycle
 and their duration - supports S3 (suspend to RAM) and S4 (hibernate to disk)
-(c) 2017 Ariel
+(c) 2017-2020 Ariel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
