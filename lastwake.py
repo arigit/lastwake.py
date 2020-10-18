@@ -91,7 +91,7 @@ if __name__ == '__main__':
         # take timestamp of first entry in list as boot time
         bootTime = j.get_next()['__REALTIME_TIMESTAMP']
     except KeyError:
-        print("\n Warning: no entries in the Journal found for boot: " + bootId + " (script terminated)\n")
+        print("\n Warning: no entries in the Journal found for " + msg + " (script terminated)\n")
         sys.exit(1)
 
     # Kernel messages lingo: Hibernation = to disk; Suspend = to RAM;
