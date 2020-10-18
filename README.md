@@ -10,34 +10,35 @@ By default it will perform the analysis of wake-up/sleep cycles for the current 
 This program requires:
 
 * The `libsystemd` development library. To get it:
-
-In recent ubuntu versions:
-```
-sudo apt install libsystemd-dev
-```
-In fedora:
-```
-sudo dnf install systemd-devel
-```
- 
+  
+  In recent ubuntu versions:
+  ```
+  sudo apt install libsystemd-dev
+  ```
+  In fedora:
+  ```
+  sudo dnf install systemd-devel
+  ```
+  
 * And finally: `systemd-python` ([Github](https://github.com/systemd/python-systemd), [PyPI](https://pypi.python.org/pypi/systemd-python)). To get it:
 
-```
-    pip3 install -r requirements.txt
-```
+  ```
+  pip3 install -r requirements.txt
+  ```
 
 
 ## Usage
-lastwake [-h] [-b BOOT_ID] [bootId]
+
+    lastwake [-h] [-b BOOT_ID] [bootId]
+
 
 ### Examples
 
-lastwake
+    lastwake
 
-lastwake --boot-id afdffb7dae61404abb5506ebf10ee2ac
+    lastwake --boot-id afdffb7dae61404abb5506ebf10ee2ac
 
-lastwake afdffb7dae61404abb5506ebf10ee2ac
-
+    lastwake afdffb7dae61404abb5506ebf10ee2ac
 
 
 ## Sample Output
@@ -58,6 +59,4 @@ Wake/Sleep Time SystemD Journal Analyzer
  ------------------- | ------------------- | ---------- | --------- 
 
 Days Since Boot: 0.51 - Days Awake: 0.09 - Wake/Sleep Cycles: 4
-
-
 ```
