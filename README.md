@@ -10,20 +10,21 @@ By default it will perform the analysis of wake-up/sleep cycles for the current 
 This program requires:
 
 1. The `libsystemd` development library. To get it:
-  In recent ubuntu versions:
-  ```
-  sudo apt install libsystemd-dev
-  ```
-  In fedora:
-  ```
-  sudo dnf install systemd-devel
-  ```
+
+    In recent ubuntu versions:
+    ```
+    sudo apt install libsystemd-dev
+    ```
+    In fedora:
+    ```
+    sudo dnf install systemd-devel
+    ```
   
 1. And finally: `systemd-python` ([Github](https://github.com/systemd/python-systemd), [PyPI](https://pypi.python.org/pypi/systemd-python)). To get it:
 
-  ```
-  pip3 install -r requirements.txt
-  ```
+    ```
+    pip3 install -r requirements.txt
+    ```
 
 
 ## Usage
