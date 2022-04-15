@@ -3,7 +3,7 @@
 Parses the systemd journal to find out:
 time of last cold boot, and start/end times of each sleep/resume cycle
 and their duration - supports S3 (suspend to RAM) and S4 (hibernate to disk)
-(c) 2017-2020 Ariel
+(c) 2017-2022 Ariel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,26 +49,32 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--boot-id', help="boot-id in the format obtained from 'journalctl --list-boots'", action="store")
     parser.add_argument('bootId', help="optional: boot-id in the format obtained from 'journalctl --list-boots'", nargs='?')
-
+    parser.add_argument('-s', '--seconds-since-last-wake-up', help="prints the number of seconds elapsed since the last wake-up \
+                        event", action="store_true")
+    
     args = parser.parse_args()                  
     
     
     if not len(sys.argv) > 1: 
         # if no arguments, assume current boot
         bootId = None
-        msg = 'current boot'
+        bootUnderAnalysis = 'current boot'
+    elif len(sys.argv) == 2 and args.seconds_since_last_wake_up == True:
+        bootId = None
+        bootUnderAnalysis = 'current boot'
     elif args.boot_id:
         bootId = args.boot_id
-        msg = 'selected boot = ' + bootId
+        bootUnderAnalysis = 'selected boot = ' + bootId
     else:
         bootId = args.bootId
-        msg = 'selected boot = ' + bootId
+        bootUnderAnalysis = 'selected boot = ' + bootId
 
     if bootId and bootId.startswith("-"):
         bId = int(bootId)
         assert bId <= 0
-        out = subprocess.check_output(["journalctl",
-                                       "--list-boots"]).decode('utf-8')
+        out = subprocess.run(["journalctl",
+                "--list-boots"], capture_output=True, encoding='utf8'
+                ).stdout  
         boots = {
             int(l[0]): l[1]
             for l in map(lambda x: x.strip().split(" "),
@@ -77,15 +83,12 @@ if __name__ == '__main__':
         if bId in boots:
             bootId = boots[bId]
         
-      
 
     j = journal.Reader(journal.SYSTEM)
     j.this_boot(bootId)
     j.add_conjunction()
     j.log_level(journal.LOG_DEBUG)
 
-    print("\nWake/Sleep Time SystemD Journal Analyzer\n")
-    print(" Boot under analysis: " + msg)
 
     try:
         # take timestamp of first entry in list as boot time
@@ -112,8 +115,6 @@ if __name__ == '__main__':
     j.add_match("MESSAGE=" + suspendWake)
     j.add_disjunction()
     j.add_match("MESSAGE=" + shuttingDown)
-
-    print(" Initial Boot Timestamp: ", bootTime.strftime("%Y-%m-%d %H:%M:%S"), "\n")
 
     # times is an array of [(start-boot, suspend), (wakeup, suspend), ...]
 
@@ -151,9 +152,8 @@ if __name__ == '__main__':
     times.append((wakeUpCandidate, sleepCandidate, wakeUpCandidateType))
 
     j.close()
-    print(" ", end='\r')
 
-    # prints three columns
+    # prepares the column content for printing
     # Wake Time   |   Suspend Time    |    Awake Time
     # first row contains boot time
     # last row contains last awake time but no 'suspend time'
@@ -161,13 +161,12 @@ if __name__ == '__main__':
     headers = ["Wake Timestamp", "Sleep Timestamp", "Awake Time", "Wake From"]
     row_format = " {:^19} |" * 2 + " {:^10} |" + " {:^9}"
     timeDiff_format = "{:3d}h {:2d}m"
-    print(row_format.format(*headers))
     rowSeparator = ("-" * 19, "-" * 19, "-" * 10, "-" * 9)
-    print(row_format.format(*rowSeparator))
 
     # assemble matrix rows
     matrix = []
     totalDaysAwake = 0
+    secondsSinceLastWakeUp = 0
 
     defaultFormat = "%Y-%m-%d %H:%M:%S"
     # Create a string array with the infos
@@ -176,6 +175,7 @@ if __name__ == '__main__':
         if end is None:
             end = datetime.datetime.now()
             endFormat = '(Still Awake)'
+            secondsSinceLastWakeUp = (end - start).total_seconds()
         else:
             endFormat = defaultFormat
         lastTime = end
@@ -188,6 +188,19 @@ if __name__ == '__main__':
         ]
         matrix.append(row)
         totalDaysAwake = totalDaysAwake + awakeTime[3]
+
+
+    if args.seconds_since_last_wake_up:
+        print(str(round(secondsSinceLastWakeUp)))
+        sys.exit()
+
+
+    print("\nWake/Sleep Time SystemD Journal Analyzer\n")
+    print(" Boot under analysis: " + bootUnderAnalysis)
+    print(" Initial Boot Timestamp: ", bootTime.strftime("%Y-%m-%d %H:%M:%S"), "\n")
+    print(" ", end='\r')
+    print(row_format.format(*headers))
+    print(row_format.format(*rowSeparator))
 
     for row in matrix:
         print(row_format.format(*row))
