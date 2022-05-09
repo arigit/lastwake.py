@@ -101,20 +101,15 @@ if __name__ == '__main__':
     # Sleep = either hibernation (S4) or suspend (S3)
     suspendStart = "Reached target Sleep."
     hibernateStart = "Suspending system..."
-    suspendWake = "ACPI: Waking up from system sleep state S3"
-    hibernateWake = "ACPI: Waking up from system sleep state S4"
+    suspendWakeList = ["ACPI: PM: Waking up from system sleep state S3", "ACPI: Waking up from system sleep state S3"]
+    hibernateWakeList = ["ACPI: PM: Waking up from system sleep state S4", "ACPI: PM: Waking up from system sleep state S4"]
     shuttingDown = "Shutting down."
     # Starting Sleep (applies to both Suspend and Hibernation): Suspending system...
 
-    j.add_match("MESSAGE=" + hibernateStart)
-    j.add_disjunction()
-    j.add_match("MESSAGE=" + suspendStart)
-    j.add_disjunction()
-    j.add_match("MESSAGE=" + hibernateWake)
-    j.add_disjunction()
-    j.add_match("MESSAGE=" + suspendWake)
-    j.add_disjunction()
-    j.add_match("MESSAGE=" + shuttingDown)
+
+    for item in ([hibernateStart] + [suspendStart] + suspendWakeList + hibernateWakeList + [shuttingDown]):
+        j.add_match("MESSAGE=" + item)
+        j.add_disjunction()
 
     # times is an array of [(start-boot, suspend), (wakeup, suspend), ...]
 
@@ -138,15 +133,15 @@ if __name__ == '__main__':
         #print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
         if suspendStart in msg or hibernateStart in msg or shuttingDown in msg:
             sleepCandidate = entry['__REALTIME_TIMESTAMP']
-        elif (suspendWake in msg or hibernateWake in msg) \
-            and sleepCandidate is not None:
+        elif  ( any(x in msg for x in (suspendWakeList + hibernateWakeList))
+            and sleepCandidate is not None ):
             # found a wakeup: add the previous Wake along with the latest sleep
             times.append((wakeUpCandidate, sleepCandidate, wakeUpCandidateType))
             # capture the wakeUpCandidate and switch to looking for WakeUps
             wakeUpCandidate = entry['__REALTIME_TIMESTAMP']
             sleepCandidate = None
-            if suspendWake in msg: wakeUpCandidateType = "S3 (RAM)"
-            elif hibernateWake in msg: wakeUpCandidateType = "S4 (disk)"
+            if any(x in msg for x in suspendWakeList): wakeUpCandidateType = "S3 (RAM)"
+            elif any(x in msg for x in hibernateWakeList): wakeUpCandidateType = "S4 (disk)"
 
     # append the last wakeUp with the sleepCandidate (might be None if still awake)
     times.append((wakeUpCandidate, sleepCandidate, wakeUpCandidateType))
