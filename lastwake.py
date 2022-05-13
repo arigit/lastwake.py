@@ -102,7 +102,7 @@ if __name__ == '__main__':
     suspendStart = "Reached target Sleep."
     hibernateStart = "Suspending system..."
     suspendWakeList = ["ACPI: PM: Waking up from system sleep state S3", "ACPI: Waking up from system sleep state S3"]
-    hibernateWakeList = ["ACPI: PM: Waking up from system sleep state S4", "ACPI: PM: Waking up from system sleep state S4"]
+    hibernateWakeList = ["ACPI: PM: Waking up from system sleep state S4", "ACPI: Waking up from system sleep state S4"]
     shuttingDown = "Shutting down."
     # Starting Sleep (applies to both Suspend and Hibernation): Suspending system...
 
