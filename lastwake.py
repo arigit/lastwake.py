@@ -168,7 +168,10 @@ if __name__ == '__main__':
     for i in times:
         [start, end, bootType] = i
         if end is None:
-            end = datetime.datetime.now()
+            if start.tzinfo is not None and start.tzinfo.utcoffset(start) is not None:
+                end = datetime.datetime.now(tz=datetime.timezone.utc)
+            else:
+                end = datetime.datetime.now()
             endFormat = '(Still Awake)'
             secondsSinceLastWakeUp = (end - start).total_seconds()
         else:
