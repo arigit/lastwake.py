@@ -99,15 +99,15 @@ if __name__ == '__main__':
 
     # Kernel messages lingo: Hibernation = to disk; Suspend = to RAM;
     # Sleep = either hibernation (S4) or suspend (S3)
-    suspendStart = "Reached target Sleep."
-    hibernateStart = "Suspending system..."
+    suspendStart = ['Entering sleep state \'suspend\'...', "Reached target Sleep."]
+    hibernateStart = ["Suspending system..."]
     suspendWakeList = ["ACPI: PM: Waking up from system sleep state S3", "ACPI: Waking up from system sleep state S3"]
     hibernateWakeList = ["ACPI: PM: Waking up from system sleep state S4", "ACPI: Waking up from system sleep state S4"]
     shuttingDown = "Shutting down."
     # Starting Sleep (applies to both Suspend and Hibernation): Suspending system...
 
 
-    for item in ([hibernateStart] + [suspendStart] + suspendWakeList + hibernateWakeList + [shuttingDown]):
+    for item in (hibernateStart + suspendStart + suspendWakeList + hibernateWakeList + [shuttingDown]):
         j.add_match("MESSAGE=" + item)
         j.add_disjunction()
 
@@ -131,7 +131,7 @@ if __name__ == '__main__':
         except:
             continue
         #print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
-        if suspendStart in msg or hibernateStart in msg or shuttingDown in msg:
+        if any([i in msg for i in suspendStart]) or any([i in msg for i in hibernateStart]) or shuttingDown in msg:
             sleepCandidate = entry['__REALTIME_TIMESTAMP']
         elif  ( any(x in msg for x in (suspendWakeList + hibernateWakeList))
             and sleepCandidate is not None ):
