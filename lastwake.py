@@ -3,7 +3,7 @@
 Parses the systemd journal to find out:
 time of last cold boot, and start/end times of each sleep/resume cycle
 and their duration - supports S3 (suspend to RAM) and S4 (hibernate to disk)
-(c) 2017-2022 Ariel
+(c) 2017-2024 Ariel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -99,15 +99,15 @@ if __name__ == '__main__':
 
     # Kernel messages lingo: Hibernation = to disk; Suspend = to RAM;
     # Sleep = either hibernation (S4) or suspend (S3)
-    suspendStart = ['Entering sleep state \'suspend\'...', "Reached target Sleep."]
-    hibernateStart = ["Suspending system..."]
+    suspendStartList = ['Entering sleep state \'suspend\'...', "Reached target Sleep.", "PM: suspend entry (deep)"]
+    hibernateStartList = ["Suspending system...", "PM: hibernation: hibernation entry"]
     suspendWakeList = ["ACPI: PM: Waking up from system sleep state S3", "ACPI: Waking up from system sleep state S3"]
     hibernateWakeList = ["ACPI: PM: Waking up from system sleep state S4", "ACPI: Waking up from system sleep state S4"]
-    shuttingDown = "Shutting down."
+    shuttingDownList = ["Shutting down."]
     # Starting Sleep (applies to both Suspend and Hibernation): Suspending system...
 
 
-    for item in (hibernateStart + suspendStart + suspendWakeList + hibernateWakeList + [shuttingDown]):
+    for item in (hibernateStartList + suspendStartList + suspendWakeList + hibernateWakeList + shuttingDownList):
         j.add_match("MESSAGE=" + item)
         j.add_disjunction()
 
@@ -130,10 +130,10 @@ if __name__ == '__main__':
             msg = str(entry['MESSAGE'])
         except:
             continue
-        #print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
-        if any([i in msg for i in suspendStart]) or any([i in msg for i in hibernateStart]) or shuttingDown in msg:
+        print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
+        if any(i in msg for i in (suspendStartList + hibernateStartList + shuttingDownList)):
             sleepCandidate = entry['__REALTIME_TIMESTAMP']
-        elif  ( any(x in msg for x in (suspendWakeList + hibernateWakeList))
+        elif  ( any(i in msg for i in (suspendWakeList + hibernateWakeList))
             and sleepCandidate is not None ):
             # found a wakeup: add the previous Wake along with the latest sleep
             times.append((wakeUpCandidate, sleepCandidate, wakeUpCandidateType))
