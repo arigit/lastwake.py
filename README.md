@@ -1,3 +1,5 @@
+
+
 # lastwake.py
 Wake/Sleep Time SystemD Journal Analyzer
 
@@ -43,7 +45,7 @@ This program requires:
 
 ## Usage
 
-    lastwake [-h] [-b BOOT_ID] [bootId]
+    lastwake [-h] [-b BOOT_ID] [-s] [bootId]
 
 
 ### Examples
@@ -72,4 +74,3 @@ This program requires:
 >      ------------------- | ------------------- | ---------- | --------- 
 >     
 >     Days Since Boot: 0.51 - Days Awake: 0.09 - Wake/Sleep Cycles: 4
-
