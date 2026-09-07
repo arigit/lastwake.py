@@ -1,115 +1,172 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2017-2026 Ariel
+# SPDX-License-Identifier: GPL-3.0-or-later
 """
 Parses the systemd journal to find out:
 time of last cold boot, and start/end times of each sleep/resume cycle
-and their duration - supports S3 (suspend to RAM) and S4 (hibernate to disk)
-(c) 2017-2024 Ariel
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+and their duration - supports S3 (suspend to RAM), s2idle and
+S4 (hibernate to disk)
 """
 
-import datetime
-import sys
-from systemd import journal
 import argparse
+import datetime
+import json
 import subprocess
+import sys
+
+from systemd import journal
 
 
-
-def calculateTimeDiference(suspendTime, awakeTime):
-    """returns a 'datetime.time' object
-    with the time diference in hours/minutes/seconds
-    Instead of a timedelta object, it returns
-    a list of 3 integers [hours, minutes, seconds]
+def calculateTimeDifference(endTime, startTime):
+    """Returns the elapsed time between startTime and endTime as a list of
+    4 values: [hours, minutes, seconds, fractionalDays]
     """
-    awakeSeconds = (suspendTime - awakeTime).total_seconds()
-    awakeFractionalDays = awakeSeconds / 86400
-    awakeHours = int(awakeSeconds // 3600)
-    awakeMinutes = int((awakeSeconds % 3600) // 60)
-    awakeSeconds = int(awakeSeconds % 60)
-    awakeTime = [awakeHours, awakeMinutes, awakeSeconds, awakeFractionalDays]
-    return awakeTime
+    totalSeconds = (endTime - startTime).total_seconds()
+    return [
+        int(totalSeconds // 3600),
+        int((totalSeconds % 3600) // 60),
+        int(totalSeconds % 60),
+        totalSeconds / 86400,
+    ]
+
+
+def runJournalctl(extraArgs):
+    """Runs journalctl and returns its stdout, or None if it is unavailable
+    or exits with an error."""
+    try:
+        result = subprocess.run(["journalctl"] + extraArgs,
+                                capture_output=True, encoding="utf8")
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def parseBootTable(out):
+    """Parses the human readable output of 'journalctl --list-boots'.
+
+    Handles both layouts: the original 'index boot-id first last' lines and
+    the systemd >= 254 table, which adds an IDX/BOOT ID header row and pads
+    the columns. Any line whose first field is not an integer is skipped,
+    which discards the header without needing to know the systemd version.
+    """
+    boots = {}
+    for line in out.splitlines():
+        fields = line.split()
+        if len(fields) < 2:
+            continue
+        try:
+            index = int(fields[0])
+        except ValueError:
+            continue
+        boots[index] = fields[1]
+    return boots
+
+
+def resolveBootOffset(offset, parser):
+    """Maps a relative boot index (0, -1, -2, ...) to its boot id.
+
+    Prefers the JSON output of 'journalctl --list-boots' (systemd >= 250)
+    and falls back to parsing the text table on older releases, where -o json
+    is either rejected or silently ignored for --list-boots.
+    """
+    out = runJournalctl(["--list-boots", "-o", "json"])
+    if not out:
+        out = runJournalctl(["--list-boots"])
+    if not out:
+        parser.error("could not read the boot list from journalctl")
+
+    try:
+        boots = {int(b["index"]): str(b["boot_id"]) for b in json.loads(out)}
+    except (ValueError, TypeError, KeyError):
+        # not JSON: older systemd printed the table regardless of -o json
+        boots = parseBootTable(out)
+
+    if not boots:
+        parser.error("journalctl reported no boots")
+    if offset not in boots:
+        parser.error("boot %d is not in the journal (available: %d to 0)"
+                     % (offset, min(boots)))
+    return boots[offset]
 
 
 # Main Program
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser(
+        description="Wake/Sleep time systemd journal analyzer")
+    parser.add_argument('-b', '--boot-id', action="store",
+                        help="boot-id in the format obtained from "
+                             "'journalctl --list-boots', or a relative "
+                             "offset such as -1")
+    parser.add_argument('bootId', nargs='?',
+                        help="optional: same as --boot-id, given positionally")
+    parser.add_argument('-s', '--seconds-since-last-wake-up',
+                        action="store_true",
+                        help="prints the number of seconds elapsed since the "
+                             "last wake-up event")
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-b', '--boot-id', help="boot-id in the format obtained from 'journalctl --list-boots'", action="store")
-    parser.add_argument('bootId', help="optional: boot-id in the format obtained from 'journalctl --list-boots'", nargs='?')
-    parser.add_argument('-s', '--seconds-since-last-wake-up', help="prints the number of seconds elapsed since the last wake-up \
-                        event", action="store_true")
-    
-    args = parser.parse_args()                  
-    
-    
-    if not len(sys.argv) > 1: 
-        # if no arguments, assume current boot
-        bootId = None
-        bootUnderAnalysis = 'current boot'
-    elif len(sys.argv) == 2 and args.seconds_since_last_wake_up == True:
-        bootId = None
-        bootUnderAnalysis = 'current boot'
-    elif args.boot_id:
-        bootId = args.boot_id
-        bootUnderAnalysis = 'selected boot = ' + bootId
-    else:
-        bootId = args.bootId
-        bootUnderAnalysis = 'selected boot = ' + bootId
+    args = parser.parse_args()
+
+    bootId = args.boot_id or args.bootId
 
     if bootId and bootId.startswith("-"):
-        bId = int(bootId)
-        assert bId <= 0
-        out = subprocess.run(["journalctl",
-                "--list-boots"], capture_output=True, encoding='utf8'
-                ).stdout  
-        boots = {
-            int(l[0]): l[1]
-            for l in map(lambda x: x.strip().split(" "),
-                         out.strip().split("\n")) if l
-        }
-        if bId in boots:
-            bootId = boots[bId]
-        
+        try:
+            bootOffset = int(bootId)
+        except ValueError:
+            parser.error("'%s' is not a valid boot id or boot offset" % bootId)
+        if bootOffset > 0:
+            parser.error("boot offsets must be 0 or negative")
+        bootId = resolveBootOffset(bootOffset, parser)
+
+    bootUnderAnalysis = ('selected boot = ' + bootId) if bootId \
+        else 'current boot'
 
     j = journal.Reader(journal.SYSTEM)
     j.this_boot(bootId)
     j.add_conjunction()
     j.log_level(journal.LOG_DEBUG)
 
-
     try:
         # take timestamp of first entry in list as boot time
         bootTime = j.get_next()['__REALTIME_TIMESTAMP']
     except KeyError:
-        print("\n Warning: no entries in the Journal found for " + msg + " (script terminated)\n")
+        print("\n Warning: no entries in the Journal found for "
+              + bootUnderAnalysis + " (script terminated)\n")
         sys.exit(1)
 
     # Kernel messages lingo: Hibernation = to disk; Suspend = to RAM;
-    # Sleep = either hibernation (S4) or suspend (S3)
-    suspendStartList = ['Entering sleep state \'suspend\'...', "Reached target Sleep.", "PM: suspend entry (deep)"]
-    hibernateStartList = ["Suspending system...", "PM: hibernation: hibernation entry"]
-    suspendWakeList = ["ACPI: PM: Waking up from system sleep state S3", "ACPI: Waking up from system sleep state S3"]
-    hibernateWakeList = ["ACPI: PM: Waking up from system sleep state S4", "ACPI: Waking up from system sleep state S4"]
+    # Sleep = either hibernation (S4) or suspend (S3/s2idle)
+    # These strings are matched exactly by add_match(), so each variant a
+    # kernel/systemd version might emit needs its own entry.
+    suspendStartList = ["Entering sleep state 'suspend'...",
+                        "Reached target Sleep.",
+                        "PM: suspend entry (deep)",
+                        "PM: suspend entry (s2idle)"]
+    hibernateStartList = ["Suspending system...",
+                          "PM: hibernation: hibernation entry"]
     shuttingDownList = ["Shutting down."]
-    # Starting Sleep (applies to both Suspend and Hibernation): Suspending system...
+    suspendWakeList = ["ACPI: PM: Waking up from system sleep state S3",
+                       "ACPI: Waking up from system sleep state S3"]
+    hibernateWakeList = ["ACPI: PM: Waking up from system sleep state S4",
+                         "ACPI: Waking up from system sleep state S4",
+                         "PM: hibernation: hibernation exit"]
+    # s2idle systems (most modern laptops/NUCs) never log an ACPI S3 wake;
+    # 'PM: suspend exit' is the fallback. On deep-suspend systems it is also
+    # logged, but the ACPI line arrives first and wins, so the S3 label holds.
+    s2idleWakeList = ["PM: suspend exit"]
 
+    sleepMatches = suspendStartList + hibernateStartList + shuttingDownList
+    wakeMatches = suspendWakeList + hibernateWakeList + s2idleWakeList
 
-    for item in (hibernateStartList + suspendStartList + suspendWakeList + hibernateWakeList + shuttingDownList):
+    for item in (sleepMatches + wakeMatches):
         j.add_match("MESSAGE=" + item)
         j.add_disjunction()
+
+    # the boot timestamp was read before the message filters existed, so
+    # rewind to make sure the loop below starts from the first match
+    j.seek_head()
 
     # times is an array of [(start-boot, suspend), (wakeup, suspend), ...]
 
@@ -118,6 +175,7 @@ if __name__ == '__main__':
     wakeUpCandidate = bootTime
     wakeUpCandidateType = "S5 (boot)"
     sleepCandidate = None
+    shutdownTime = None
     # Keep the latest suspend event until a Wakeup is found
     # this will allow the script to handle sequences of "N" repeated suspends in the log
     #    Result: assumes the last Suspend found in the sequence as the right one
@@ -128,20 +186,30 @@ if __name__ == '__main__':
     for entry in j:
         try:
             msg = str(entry['MESSAGE'])
-        except:
+            timestamp = entry['__REALTIME_TIMESTAMP']
+        except KeyError:
             continue
-        print(str(entry['__REALTIME_TIMESTAMP'] )+ ' ' + entry['MESSAGE'])
-        if any(i in msg for i in (suspendStartList + hibernateStartList + shuttingDownList)):
-            sleepCandidate = entry['__REALTIME_TIMESTAMP']
-        elif  ( any(i in msg for i in (suspendWakeList + hibernateWakeList))
-            and sleepCandidate is not None ):
+
+        if any(i in msg for i in shuttingDownList):
+            # a shutdown closes the last awake period; it is not a sleep
+            sleepCandidate = timestamp
+            shutdownTime = timestamp
+        elif any(i in msg for i in (suspendStartList + hibernateStartList)):
+            sleepCandidate = timestamp
+        elif (sleepCandidate is not None
+                and any(i in msg for i in wakeMatches)):
             # found a wakeup: add the previous Wake along with the latest sleep
             times.append((wakeUpCandidate, sleepCandidate, wakeUpCandidateType))
             # capture the wakeUpCandidate and switch to looking for WakeUps
-            wakeUpCandidate = entry['__REALTIME_TIMESTAMP']
+            wakeUpCandidate = timestamp
             sleepCandidate = None
-            if any(x in msg for x in suspendWakeList): wakeUpCandidateType = "S3 (RAM)"
-            elif any(x in msg for x in hibernateWakeList): wakeUpCandidateType = "S4 (disk)"
+            shutdownTime = None
+            if any(x in msg for x in suspendWakeList):
+                wakeUpCandidateType = "S3 (RAM)"
+            elif any(x in msg for x in hibernateWakeList):
+                wakeUpCandidateType = "S4 (disk)"
+            else:
+                wakeUpCandidateType = "s2idle"
 
     # append the last wakeUp with the sleepCandidate (might be None if still awake)
     times.append((wakeUpCandidate, sleepCandidate, wakeUpCandidateType))
@@ -162,6 +230,7 @@ if __name__ == '__main__':
     matrix = []
     totalDaysAwake = 0
     secondsSinceLastWakeUp = 0
+    lastTime = bootTime
 
     defaultFormat = "%Y-%m-%d %H:%M:%S"
     # Create a string array with the infos
@@ -177,7 +246,7 @@ if __name__ == '__main__':
         else:
             endFormat = defaultFormat
         lastTime = end
-        awakeTime = calculateTimeDiference(end, start)
+        awakeTime = calculateTimeDifference(end, start)
         row = [
             start.strftime(defaultFormat),
             end.strftime(endFormat),
@@ -187,16 +256,13 @@ if __name__ == '__main__':
         matrix.append(row)
         totalDaysAwake = totalDaysAwake + awakeTime[3]
 
-
     if args.seconds_since_last_wake_up:
         print(str(round(secondsSinceLastWakeUp)))
         sys.exit()
 
-
     print("\nWake/Sleep Time SystemD Journal Analyzer\n")
     print(" Boot under analysis: " + bootUnderAnalysis)
-    print(" Initial Boot Timestamp: ", bootTime.strftime("%Y-%m-%d %H:%M:%S"), "\n")
-    print(" ", end='\r')
+    print(" Initial Boot Timestamp: ", bootTime.strftime(defaultFormat), "\n")
     print(row_format.format(*headers))
     print(row_format.format(*rowSeparator))
 
@@ -205,9 +271,11 @@ if __name__ == '__main__':
 
     print(row_format.format(*rowSeparator), "\n")
 
+    if shutdownTime is not None:
+        print("Boot ended with a shutdown at "
+              + shutdownTime.strftime(defaultFormat) + "\n")
 
-    timeSinceBoot = calculateTimeDiference(lastTime, bootTime)
-    # print(lastTime)
+    timeSinceBoot = calculateTimeDifference(lastTime, bootTime)
     # provide a summary
     print(
         str(
